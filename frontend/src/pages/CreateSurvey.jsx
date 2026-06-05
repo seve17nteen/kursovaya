@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createSurvey, getCategories, createQuestion, getSurvey } from '../api/surveys';
+import { createSurvey, getCategories } from '../api/surveys';
 import './CreateSurvey.css';
 
 export default function CreateSurvey() {
@@ -16,8 +16,13 @@ export default function CreateSurvey() {
 
   useEffect(() => {
     getCategories()
-      .then(({ data }) => setCategories(data.results || data))
-      .catch(() => {});
+      .then(({ data }) => {
+        const items = data.results || data;
+        setCategories(items);
+      })
+      .catch(() => {
+        setError('Не удалось загрузить категории');
+      });
   }, []);
 
   const addQuestion = () => {
@@ -83,39 +88,56 @@ export default function CreateSurvey() {
       return;
     }
 
+    for (const q of questions) {
+      if (!q.text.trim()) {
+        setError('У каждого вопроса должен быть текст');
+        return;
+      }
+      if (q.question_type !== 'text') {
+        const nonEmptyChoices = q.choices.filter((c) => c.text.trim());
+        if (nonEmptyChoices.length < 2) {
+          setError('У каждого вопроса с вариантами должно быть минимум 2 неп��стых варианта ответа');
+          return;
+        }
+      }
+    }
+
     setLoading(true);
     try {
-      // Создаём опрос
-      const { data: survey } = await createSurvey({
+      const payload = {
         title,
         description,
         category: categoryId,
         is_published: true,
         is_anonymous: isAnonymous,
-      });
-
-      // Создаём вопросы
-      for (const q of questions) {
-        const questionData = {
-          survey: survey.id,
-          text: q.text,
+        questions: questions.map((q, index) => ({
+          text: q.text.trim(),
           question_type: q.question_type,
           required: q.required,
-          order: questions.indexOf(q),
-        };
+          order: index + 1,
+          choices: q.question_type === 'text'
+            ? []
+            : q.choices
+                .filter((c) => c.text.trim())
+                .map((c, i) => ({ text: c.text.trim(), order: i + 1 })),
+        })),
+      };
 
-        if (q.question_type !== 'text') {
-          questionData.choices = q.choices
-            .filter((c) => c.text.trim())
-            .map((c, i) => ({ text: c.text, order: i }));
-        }
-
-        await createQuestion(questionData);
-      }
-
+      const { data: survey } = await createSurvey(payload);
       navigate(`/surveys/${survey.id}`);
     } catch (err) {
-      setError('Ошибка при создании опроса');
+      const apiError = err.response?.data;
+      if (apiError) {
+        const flatten = (value) => {
+          if (typeof value === 'string') return value;
+          if (Array.isArray(value)) return value.map(flatten).join('; ');
+          if (typeof value === 'object' && value !== null) return Object.values(value).map(flatten).join('; ');
+          return '';
+        };
+        setError(flatten(apiError) || 'Ошибка при создании опроса');
+      } else {
+        setError('Ошибка при создании опроса');
+      }
       setLoading(false);
     }
   };
@@ -152,9 +174,16 @@ export default function CreateSurvey() {
             <label>Категория *</label>
             <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} required>
               <option value="">Выберите категорию</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>{cat.title}</option>
-              ))}
+              {categories
+                .slice()
+                .sort((a, b) => {
+                  if (a.title === 'Другое') return 1;
+                  if (b.title === 'Другое') return -1;
+                  return a.title.localeCompare(b.title, 'ru');
+                })
+                .map((cat) => (
+                  <option key={cat.id} value={cat.id}>{cat.title}</option>
+                ))}
             </select>
           </div>
           <div className="form-group">

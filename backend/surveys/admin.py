@@ -62,7 +62,7 @@ class SurveyAdmin(admin.ModelAdmin):
     )
 
     def responses_count(self, obj):
-        return obj.responses_count
+        return obj.responses.count()
     responses_count.short_description = 'Ответов'
 
 

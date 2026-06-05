@@ -26,17 +26,31 @@ class QuestionSerializer(serializers.ModelSerializer):
 class QuestionCreateSerializer(serializers.ModelSerializer):
     """Сериализатор для создания вопроса с вариантами."""
 
+    survey = serializers.PrimaryKeyRelatedField(queryset=Survey.objects.all(), write_only=True)
     choices = ChoiceSerializer(many=True, required=False)
 
     class Meta:
         model = Question
-        fields = ['text', 'question_type', 'order', 'required', 'choices']
+        fields = ['survey', 'text', 'question_type', 'order', 'required', 'choices']
+
+    def validate(self, attrs):
+        question_type = attrs.get('question_type')
+        choices_data = self.initial_data.get('choices', [])
+
+        if question_type in ('radio', 'checkbox'):
+            non_empty_choices = [c for c in choices_data if c.get('text', '').strip()]
+            if len(non_empty_choices) < 2:
+                raise serializers.ValidationError({
+                    'choices': 'Для вопросов с вариантами ответа нужно минимум 2 непустых варианта.'
+                })
+        return attrs
 
     def create(self, validated_data):
         choices_data = validated_data.pop('choices', [])
         question = Question.objects.create(**validated_data)
         for choice_data in choices_data:
-            Choice.objects.create(question=question, **choice_data)
+            if choice_data.get('text', '').strip():
+                Choice.objects.create(question=question, **choice_data)
         return question
 
 
@@ -61,8 +75,8 @@ class SurveyListSerializer(serializers.ModelSerializer):
     author_name = serializers.CharField(
         source='author.username', read_only=True
     )
-    questions_count = serializers.IntegerField(read_only=True)
-    responses_count = serializers.IntegerField(read_only=True)
+    questions_count = serializers.SerializerMethodField()
+    responses_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Survey
@@ -74,6 +88,12 @@ class SurveyListSerializer(serializers.ModelSerializer):
             'category_title', 'author_name'
         ]
 
+    def get_questions_count(self, obj):
+        return getattr(obj, 'questions_count', obj.questions.count())
+
+    def get_responses_count(self, obj):
+        return getattr(obj, 'responses_count', obj.responses.count())
+
 
 class SurveyDetailSerializer(serializers.ModelSerializer):
     """Полный сериализатор опроса с вопросами."""
@@ -81,7 +101,8 @@ class SurveyDetailSerializer(serializers.ModelSerializer):
     category = SurveyCategorySerializer(read_only=True)
     author = serializers.StringRelatedField(read_only=True)
     questions = QuestionSerializer(many=True, read_only=True)
-    responses_count = serializers.IntegerField(read_only=True)
+    questions_count = serializers.SerializerMethodField()
+    responses_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Survey
@@ -93,16 +114,61 @@ class SurveyDetailSerializer(serializers.ModelSerializer):
             'category', 'author', 'questions'
         ]
 
+    def get_questions_count(self, obj):
+        return getattr(obj, 'questions_count', obj.questions.count())
+
+    def get_responses_count(self, obj):
+        return getattr(obj, 'responses_count', obj.responses.count())
+
+
+class SurveyNestedQuestionCreateSerializer(serializers.ModelSerializer):
+    """Вложенный сериализатор вопроса при создании опроса."""
+
+    choices = ChoiceSerializer(many=True, required=False)
+
+    class Meta:
+        model = Question
+        fields = ['text', 'question_type', 'order', 'required', 'choices']
+
+    def validate(self, attrs):
+        question_type = attrs.get('question_type')
+        choices_data = attrs.get('choices', [])
+
+        if question_type in ('radio', 'checkbox'):
+            non_empty_choices = [c for c in choices_data if c.get('text', '').strip()]
+            if len(non_empty_choices) < 2:
+                raise serializers.ValidationError({
+                    'choices': 'Для вопросов с вариантами ответа нужно минимум 2 непустых варианта.'
+                })
+        return attrs
+
 
 class SurveyCreateUpdateSerializer(serializers.ModelSerializer):
     """Сериализатор создания/обновления опроса."""
 
+    id = serializers.IntegerField(read_only=True)
+    questions = SurveyNestedQuestionCreateSerializer(many=True, write_only=True, required=False)
+
     class Meta:
         model = Survey
         fields = [
-            'title', 'description', 'category',
-            'is_published', 'is_anonymous'
+            'id', 'title', 'description', 'category',
+            'is_published', 'is_anonymous', 'questions'
         ]
+
+    def create(self, validated_data):
+        questions_data = validated_data.pop('questions', [])
+        author = self.context['request'].user
+        survey = Survey.objects.create(author=author, **validated_data)
+
+        for question_data in questions_data:
+            choices_data = question_data.pop('choices', [])
+            question = Question.objects.create(survey=survey, **question_data)
+            for choice_data in choices_data:
+                if choice_data.get('text', '').strip():
+                    Choice.objects.create(question=question, **choice_data)
+
+        return survey
 
 
 class AnswerCreateSerializer(serializers.ModelSerializer):

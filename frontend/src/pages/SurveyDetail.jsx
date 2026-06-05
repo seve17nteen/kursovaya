@@ -17,9 +17,11 @@ export default function SurveyDetail() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     setLoading(true);
+    setLoadError('');
     Promise.all([
       getSurvey(id),
       getComments(id),
@@ -29,7 +31,9 @@ export default function SurveyDetail() {
         setSurvey(surveyRes.data);
         setComments(commentsRes.data.results || commentsRes.data);
       })
-      .catch(() => navigate('/'))
+      .catch((err) => {
+        setLoadError(err.response?.data?.detail || 'Не удалось загрузить опрос');
+      })
       .finally(() => setLoading(false));
   }, [id, navigate]);
 
@@ -121,7 +125,8 @@ export default function SurveyDetail() {
   };
 
   if (loading) return <div className="loading">Загрузка опроса...</div>;
-  if (!survey) return null;
+  if (loadError) return <div className="loading">{loadError}</div>;
+  if (!survey) return <div className="loading">Опрос не найден</div>;
 
   return (
     <div className="survey-detail">

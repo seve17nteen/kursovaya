@@ -9,6 +9,7 @@ import SurveyDetail from './pages/SurveyDetail';
 import CreateSurvey from './pages/CreateSurvey';
 import MySurveys from './pages/MySurveys';
 import Profile from './pages/Profile';
+import EditSurvey from './pages/EditSurvey';
 import './App.css';
 
 function App() {
@@ -35,6 +36,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <MySurveys />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/surveys/:id/edit"
+              element={
+                <ProtectedRoute>
+                  <EditSurvey />
                 </ProtectedRoute>
               }
             />

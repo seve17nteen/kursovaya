@@ -75,13 +75,6 @@ class Survey(models.Model):
     def __str__(self):
         return self.title
 
-    @property
-    def questions_count(self):
-        return self.questions.count()
-
-    @property
-    def responses_count(self):
-        return self.responses.count()
 
     class Meta:
         verbose_name = 'Опрос'
@@ -190,8 +183,12 @@ class Response(models.Model):
         verbose_name = 'Ответ на опрос'
         verbose_name_plural = 'Ответы на опросы'
         ordering = ['-created_at']
-        # Один пользователь может пройти опрос несколько раз
-        # unique_together не добавляем — разрешаем повторное прохождение
+        constraints = [
+            models.UniqueConstraint(
+                fields=['survey', 'user'],
+                name='unique_response_per_user_per_survey'
+            )
+        ]
 
 
 class Answer(models.Model):
