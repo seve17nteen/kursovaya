@@ -25,3 +25,7 @@ backend/.env
 
 # Documents
 *.docx
+
+# Frontend
+frontend/node_modules/
+frontend/dist/

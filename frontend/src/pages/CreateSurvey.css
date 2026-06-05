@@ -1,0 +1,77 @@
+.create-survey {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.create-survey h1 {
+  font-size: 28px;
+  color: #1a1a2e;
+  margin-bottom: 24px;
+}
+
+.checkbox-label {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  font-weight: 400 !important;
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #e94560;
+}
+
+.questions-section {
+  margin: 24px 0;
+}
+
+.questions-section h3 {
+  font-size: 20px;
+  color: #1a1a2e;
+  margin-bottom: 16px;
+}
+
+.question-editor {
+  background: #f9f9f9;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.question-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  font-weight: 600;
+  color: #555;
+}
+
+.choices-editor {
+  margin-top: 8px;
+}
+
+.choice-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.choice-row input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.choice-number {
+  color: #888;
+  font-size: 14px;
+  min-width: 20px;
+}
